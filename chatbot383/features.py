@@ -733,6 +733,10 @@ class Features(object):
                 self._alert_important_food_change(whats_on, True)
                 self._food_current = whats_on
 
+                # If this was previously "next", then now we don't know what "next" is.
+                if self._food_next == self._food_current:
+                    self._food_next = ""
+
 
     def _food_current_command(self, session):
         if not self._food_current:
