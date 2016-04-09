@@ -703,7 +703,7 @@ class Features(object):
                 out = 'twitch.tv/food will play "{}" next'.format(title)
 
             for channel in self._alert_channels:
-                self.bot.send_text(channel, 'PogChamp {}'.format(out))
+                self._bot.send_text(channel, 'PogChamp {}'.format(out))
 
     def _collect_food_message(self, message):
         text = message['text']
