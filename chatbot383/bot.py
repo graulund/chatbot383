@@ -42,12 +42,13 @@ class InboundMessageSession(object):
 
 class Bot(object):
     def __init__(self, channels, main_client, group_client, inbound_queue,
-                 ignored_users=None):
+                 ignored_users=None, silent_channels=None):
         self._channels = channels
         self._main_client = main_client
         self._group_client = group_client
         self._inbound_queue = inbound_queue
         self._ignored_users = frozenset(ignored_users or ())
+        self._silent_channels = frozenset(silent_channels or ())
         self._user_limiter = Limiter(min_interval=5)
         self._channel_spam_limiter = Limiter(min_interval=1)
         self._scheduler = sched.scheduler()
@@ -74,8 +75,7 @@ class Bot(object):
     def is_group_chat(cls, channel_name):
         return channel_name.startswith('#_')
 
-    @classmethod
-    def is_text_safe(cls, text):
+    def is_text_safe(self, text, channel=""):
         if text == '':
             return True
 
@@ -86,6 +86,9 @@ class Bot(object):
             return False
 
         if re.search(r'[\x00-\x1f]', text):
+            return False
+
+        if channel in self._silent_channels:
             return False
 
         return True
@@ -122,7 +125,7 @@ class Bot(object):
         del text
 
         for line in lines:
-            if not self.is_text_safe(line):
+            if not self.is_text_safe(line, channel):
                 _logger.info('Discarded message %s %s',
                              ascii(channel), ascii(line))
                 return
@@ -130,13 +133,14 @@ class Bot(object):
             client.privmsg(channel, line, action=me)
 
     def send_whisper(self, username, text):
-        if not self.is_text_safe(text):
-            _logger.info('Discarded message %s %s', ascii(username), ascii(text))
-            return
+        pass
+        #if not self.is_text_safe(text):
+        #    _logger.info('Discarded message %s %s', ascii(username), ascii(text))
+        #    return
 
-        text = '/w {} {}'.format(username, text)
+        #text = '/w {} {}'.format(username, text)
 
-        self._group_client.privmsg('#jtv', text)
+        #self._group_client.privmsg('#jtv', text)
 
     @classmethod
     def split_multiline(cls, text, max_length=400):

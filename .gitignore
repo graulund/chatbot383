@@ -6,7 +6,11 @@
 __pycache__
 *.py[co]
 
+# mac
+.DS_Store
 
 test_data/
 
 *~
+config.json
+chatbot383.db*

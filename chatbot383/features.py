@@ -252,7 +252,7 @@ class Features(object):
     TOO_LONG_TEXT_TEMPLATE = '{} Message length exceeds my capabilities!'
     MAIL_MAX_LEN = 300
 
-    def __init__(self, bot, help_text, database, config):
+    def __init__(self, bot, help_text, database, config, alert_channels=None):
         self._bot = bot
         self._help_text = help_text
         self._database = database
@@ -261,42 +261,48 @@ class Features(object):
         self._last_message = {}
         self._spam_limiter = Limiter(min_interval=10)
         self._regex_server = RegexServer()
-        self._token_notifier = TokenNotifier(
-            config.get('token_notify_filename'),
-            config.get('token_notify_channels'),
-            config.get('token_notify_interval', 60)
-        )
+        #self._token_notifier = TokenNotifier(
+        #    config.get('token_notify_filename'),
+        #    config.get('token_notify_channels'),
+        #    config.get('token_notify_interval', 60)
+        #)
         self._tellnext_generator = None
+        self._alert_channels = frozenset(alert_channels or ())
 
-        if os.path.isfile(config.get('tellnext_database', '')):
-            self._tellnext_generator = TellnextGenerator(config['tellnext_database'])
+        self._food_current = ""
+        self._food_next = ""
+
+        #if os.path.isfile(config.get('tellnext_database', '')):
+        #    self._tellnext_generator = TellnextGenerator(config['tellnext_database'])
 
         bot.register_message_handler('pubmsg', self._collect_recent_message)
         bot.register_message_handler('action', self._collect_recent_message)
         bot.register_command(r's/(.+/.*)', self._regex_command)
-        bot.register_command(r'(?i)!double(team)?($|\s.*)', self._double_command)
-        bot.register_command(r'(?i)!(groudonger)?help($|\s.*)', self._help_command)
+        #bot.register_command(r'(?i)!double(team)?($|\s.*)', self._double_command)
+        #bot.register_command(r'(?i)!(groudonger)?help($|\s.*)', self._help_command)
         bot.register_command(r'(?i)!groudon(ger)?($|\s.*)', self._roar_command)
-        bot.register_command(r'(?i)!hypestats($|\s.*)', self._hype_stats_command)
+        #bot.register_command(r'(?i)!hypestats($|\s.*)', self._hype_stats_command)
         bot.register_command(r'(?i)!klappa($|\s.*)', self._klappa_command)
-        bot.register_command(r'(?i)!(mail|post)($|\s.*)$', self._mail_command)
-        bot.register_command(r'(?i)!(mail|post)status($|\s.*)', self._mail_status_command)
-        bot.register_command(r'(?i)!pick\s+(.*)', self._pick_command)
-        bot.register_command(r'(?i)!praise($|\s.{,100})$', self._praise_command)
-        bot.register_command(r'(?i)!(?:shuffle|scramble)($|\s.*)', self._shuffle_command)
-        bot.register_command(r'(?i)!song($|\s.{,50})$', self._song_command)
-        bot.register_command(r'(?i)!sort($|\s.*)', self._sort_command)
-        bot.register_command(r'(?i)!rand(?:om)?case($|\s.*)', self._rand_case_command)
-        bot.register_command(r'(?i)!release($|\s.{,100})$', self._release_command)
-        bot.register_command(r'(?i)!riot($|\s.{,100})$', self._riot_command)
-        bot.register_command(r'(?i)!rip($|\s.{,100})$', self._rip_command)
-        bot.register_command(r'(?i)!(xd|minglee|chfoo)($|\s.*)', self._xd_command)
+        #bot.register_command(r'(?i)!(mail|post)($|\s.*)$', self._mail_command)
+        #bot.register_command(r'(?i)!(mail|post)status($|\s.*)', self._mail_status_command)
+        #bot.register_command(r'(?i)!pick\s+(.*)', self._pick_command)
+        #bot.register_command(r'(?i)!praise($|\s.{,100})$', self._praise_command)
+        #bot.register_command(r'(?i)!(?:shuffle|scramble)($|\s.*)', self._shuffle_command)
+        #bot.register_command(r'(?i)!song($|\s.{,50})$', self._song_command)
+        #bot.register_command(r'(?i)!sort($|\s.*)', self._sort_command)
+        #bot.register_command(r'(?i)!rand(?:om)?case($|\s.*)', self._rand_case_command)
+        #bot.register_command(r'(?i)!release($|\s.{,100})$', self._release_command)
+        #bot.register_command(r'(?i)!riot($|\s.{,100})$', self._riot_command)
+        #bot.register_command(r'(?i)!rip($|\s.{,100})$', self._rip_command)
+        #bot.register_command(r'(?i)!(xd|minglee|chfoo)($|\s.*)', self._xd_command)
         # Temporary disabled. interferes with rate limit
         # bot.register_command(r'.*\b[xX][dD] +MingLee\b.*', self._xd_rand_command)
-        bot.register_command(r'(?i)!(wow)($|\s.*)', self._wow_command)
+        #bot.register_command(r'(?i)!(wow)($|\s.*)', self._wow_command)
+        bot.register_command(r'(?i)!foodcurrent($|\s.*)', self._food_current_command)
+        bot.register_command(r'(?i)!foodnext($|\s.*)', self._food_next_command)
 
         self._reseed_rng_sched()
-        self._token_notify_sched()
+        #self._token_notify_sched()
 
     def _reseed_rng_sched(self):
         _reseed()
@@ -333,10 +339,12 @@ class Features(object):
             our_username = session.client.get_nickname(lower=True)
 
             if username != our_username:
-                self._recent_messages_for_regex[channel].append(session.message)
+                #self._recent_messages_for_regex[channel].append(session.message)
 
-                if not session.message['text'].startswith('!'):
-                    self._last_message[channel] = session.message
+                #if not session.message['text'].startswith('!'):
+                #    self._last_message[channel] = session.message
+                if username.lower() == "food" and channel.lower() == "#food":
+                    self._collect_food_message(session.message)
 
     def _help_command(self, session):
         session.reply('{} {}'.format(gen_roar(), self._help_text))
@@ -685,6 +693,76 @@ class Features(object):
                 total=unread_count + read_count
             )
         )
+
+    def _alert_important_food_change(self, title, isNow):
+        # This is only called if the title is different from what we already had in our variables
+        if re.search(r"\bjulia\b", title, re.I) or re.search(r"\bfrench\s+chef\b", title, re.I):
+            if isNow:
+                out = 'twitch.tv/food is now playing "{}"'.format(title)
+            else:
+                out = 'twitch.tv/food will play "{}" next'.format(title)
+
+            for channel in self._alert_channels:
+                self.bot.send_text(channel, 'PogChamp {}'.format(out))
+
+    def _collect_food_message(self, message):
+        text = message['text']
+
+        # What's next
+        whats_next = ""
+        match = re.fullmatch(r"\s*will play \"([^\"]+)\" next\s*", text, re.I)
+
+        if match:
+            whats_next = match.group(1)
+
+        match = re.fullmatch(r"\s*the vote is done! the winner is \"([^\"]+)\" with [0-9]+ votes?\s*", text, re.I)
+
+        if match:
+            whats_next = match.group(1)
+
+        if whats_next and self._food_next != whats_next:
+            self._alert_important_food_change(whats_next, False)
+            self._food_next = whats_next
+
+        # What's playing
+        match = re.fullmatch(r"\s*now playing \"([^\"]+)\"\s*", text, re.I)
+
+        if match:
+            whats_on = match.group(1)
+            if whats_on and self._food_current != whats_on:
+                self._alert_important_food_change(whats_on, True)
+                self._food_current = whats_on
+
+
+    def _food_current_command(self, session):
+        if not self._food_current:
+            session.reply(
+                '{} I have no idea what\'s playing on twitch.tv/food right now! :('
+                .format(gen_roar())
+            )
+        else:
+            session.reply(
+                '{roar} twitch.tv/food is now playing "{title}"!'
+                .format(
+                    roar=gen_roar(),
+                    title=self._food_current
+                )
+            )
+
+    def _food_next_command(self, session):
+        if not self._food_next:
+            session.reply(
+                '{} I have no idea what\'s playing on twitch.tv/food next! :('
+                .format(gen_roar())
+            )
+        else:
+            session.reply(
+                '{roar} twitch.tv/food will play "{title}" next!'
+                .format(
+                    roar=gen_roar(),
+                    title=self._food_next
+                )
+            )
 
 
 _seed = int.from_bytes(os.urandom(2500), 'big')  # copied from std lib

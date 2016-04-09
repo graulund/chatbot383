@@ -16,10 +16,12 @@ class App(object):
         channels = self._config['channels']
         self._bot = Bot(channels, self._main_client, self._group_client,
                         inbound_queue,
-                        ignored_users=self._config.get('ignored_users'))
+                        ignored_users=self._config.get('ignored_users'),
+                        silent_channels=self._config.get('silent_channels'))
         database = Database(self._config['database'])
         self._features = Features(self._bot, self._config['help_text'],
-                                  database, self._config)
+                                  database, self._config,
+                        alert_channels=self._config.get('alert_channels'))
 
     def run(self):
         username = self._config['username']
