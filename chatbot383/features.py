@@ -717,7 +717,8 @@ class Features(object):
         whats_next = ""
         match = re.fullmatch(r"\s*will play \"([^\"]+)\" next\s*", text, re.I)
 
-        if match:
+        if match and self._food_next != "voting":
+            # This particular format is invalid when voting
             whats_next = match.group(1)
 
         match = re.fullmatch(r"\s*the vote is done! the winner is \"([^\"]+)\" with [0-9]+ votes?\s*", text, re.I)
