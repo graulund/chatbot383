@@ -7,6 +7,8 @@ import random
 import re
 import sqlite3
 import time
+import datetime
+import dateutil.relativedelta
 
 import arrow
 
@@ -271,6 +273,9 @@ class Features(object):
 
         self._food_current = ""
         self._food_next = ""
+
+        self._food_current_updated = None
+        self._food_next_updated = None
 
         #if os.path.isfile(config.get('tellnext_database', '')):
         #    self._tellnext_generator = TellnextGenerator(config['tellnext_database'])
@@ -723,6 +728,7 @@ class Features(object):
         if whats_next and self._food_next != whats_next:
             self._alert_important_food_change(whats_next, False)
             self._food_next = whats_next
+            self._food_next_updated = datetime.datetime.now(datetime.timezone.utc)
 
         # What's playing
         match = re.fullmatch(r"\s*now playing \"([^\"]+)\"\s*", text, re.I)
@@ -732,39 +738,62 @@ class Features(object):
             if whats_on and self._food_current != whats_on:
                 self._alert_important_food_change(whats_on, True)
                 self._food_current = whats_on
+                self._food_current_updated = datetime.datetime.now(datetime.timezone.utc)
 
                 # If this was previously "next", then now we don't know what "next" is.
                 if self._food_next == self._food_current:
                     self._food_next = ""
+                    self._food_next_updated = datetime.datetime.now(datetime.timezone.utc)
 
+    def _food_updated_string(self, dt):
+        if not dt:
+            return ""
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        rd = dateutil.relativedelta.relativedelta(now, dt)
+
+        attrs = ['years', 'months', 'days', 'hours', 'minutes', 'seconds']
+        human_readable = lambda delta: [
+            '%d %s' % (getattr(delta, attr), getattr(delta, attr) > 1 and attr or attr[:-1])
+            for attr in attrs if getattr(delta, attr)
+        ]
+
+        hr = human_readable(rd)
+        if len(hr) > 0:
+            return "(last updated {} ago)".format(hr[0])
+        return ""
 
     def _food_current_command(self, session):
+        updated_string = self._food_updated_string(self._food_current_updated)
         if not self._food_current:
             session.reply(
-                '{} I have no idea what\'s playing on twitch.tv/food right now! :('
-                .format(gen_roar())
+                '{} I have no idea what\'s playing on twitch.tv/food right now! :( {}'
+                .format(gen_roar(), updated_string)
             )
         else:
             session.reply(
-                '{roar} twitch.tv/food is now playing "{title}"!'
+                '{roar} twitch.tv/food is now playing "{title}"! {updated}'
                 .format(
                     roar=gen_roar(),
-                    title=self._food_current
+                    title=self._food_current,
+                    updated=updated_string
                 )
             )
 
     def _food_next_command(self, session):
+        updated_string = self._food_updated_string(self._food_next_updated)
         if not self._food_next:
             session.reply(
-                '{} I have no idea what\'s playing on twitch.tv/food next! :('
-                .format(gen_roar())
+                '{} I have no idea what\'s playing on twitch.tv/food next! :( {}'
+                .format(gen_roar(), updated_string)
             )
         else:
             session.reply(
-                '{roar} twitch.tv/food will play "{title}" next!'
+                '{roar} twitch.tv/food will play "{title}" next! {updated}'
                 .format(
                     roar=gen_roar(),
-                    title=self._food_next
+                    title=self._food_next,
+                    updated=updated_string
                 )
             )
 
