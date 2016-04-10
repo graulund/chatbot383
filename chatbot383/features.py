@@ -745,6 +745,13 @@ class Features(object):
                     self._food_next = ""
                     self._food_next_updated = datetime.datetime.now(datetime.timezone.utc)
 
+        # Voting in progress
+        if text == "TIME TO VOTE!":
+            whats_next = "voting"
+            if self._food_next != whats_next:
+                self._food_next = whats_next
+                self._food_next_updated = datetime.datetime.now(datetime.timezone.utc)
+
     def _food_updated_string(self, dt):
         if not dt:
             return ""
@@ -788,14 +795,12 @@ class Features(object):
                 .format(gen_roar(), updated_string)
             )
         else:
-            session.reply(
-                '{roar} twitch.tv/food will play "{title}" next! {updated}'
-                .format(
-                    roar=gen_roar(),
-                    title=self._food_next,
-                    updated=updated_string
-                )
-            )
+            title = self._food_next
+            if title == "voting":
+                message = "twitch.tv/food chat is currently voting for what to play next."
+            else:
+                message = 'twitch.tv/food will play "{}" next!'.format(title)
+            session.reply('{} {} {}'.format(gen_roar(), message, updated_string))
 
 
 _seed = int.from_bytes(os.urandom(2500), 'big')  # copied from std lib
