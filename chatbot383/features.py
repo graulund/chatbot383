@@ -253,6 +253,7 @@ class Features(object):
     )
     TOO_LONG_TEXT_TEMPLATE = '{} Message length exceeds my capabilities!'
     MAIL_MAX_LEN = 300
+    FOOD_LOG_FILENAME = 'foodlog.txt'
 
     def __init__(self, bot, help_text, database, config, alert_channels=None):
         self._bot = bot
@@ -284,7 +285,7 @@ class Features(object):
         bot.register_message_handler('action', self._collect_recent_message)
         #bot.register_command(r's/(.+/.*)', self._regex_command)
         #bot.register_command(r'(?i)!double(team)?($|\s.*)', self._double_command)
-        #bot.register_command(r'(?i)!(groudonger)?help($|\s.*)', self._help_command)
+        bot.register_command(r'(?i)!(groudonger)?help($|\s.*)', self._help_command)
         bot.register_command(r'(?i)!groudon(ger)?($|\s.*)', self._roar_command)
         #bot.register_command(r'(?i)!hypestats($|\s.*)', self._hype_stats_command)
         bot.register_command(r'(?i)!klappa($|\s.*)', self._klappa_command)
@@ -710,6 +711,11 @@ class Features(object):
             for channel in self._alert_channels:
                 self._bot.send_text(channel, 'PogChamp {}'.format(out))
 
+    def _log_food_nowplaying(self):
+        output = "{}: {}\n".format(self._food_current_updated.isoformat(), self._food_current)
+        with open(self.FOOD_LOG_FILENAME, "a") as logfile:
+            logfile.write(output)
+
     def _collect_food_message(self, message):
         text = message['text']
 
@@ -740,6 +746,7 @@ class Features(object):
                 self._alert_important_food_change(whats_on, True)
                 self._food_current = whats_on
                 self._food_current_updated = datetime.datetime.now(datetime.timezone.utc)
+                self._log_food_nowplaying()
 
                 # If this was previously "next", then now we don't know what "next" is.
                 if self._food_next == self._food_current:
