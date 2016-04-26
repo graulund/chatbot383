@@ -181,7 +181,7 @@ class Features(object):
         #bot.register_command(r'(?i)!release($|\s.{,100})$', self._release_command)
         #bot.register_command(r'(?i)!riot($|\s.{,100})$', self._riot_command)
         #bot.register_command(r'(?i)!rip($|\s.{,100})$', self._rip_command)
-        bot.register_command(r'(?i)!gen(?:erate)?match($|\s.*)$', self._generate_match_command)
+        #bot.register_command(r'(?i)!gen(?:erate)?match($|\s.*)$', self._generate_match_command)
         #bot.register_command(r'(?i)!(xd|minglee|chfoo)($|\s.*)', self._xd_command)
         # Temporary disabled. interferes with rate limit
         # bot.register_command(r'.*\b[xX][dD] +MingLee\b.*', self._xd_rand_command)
